@@ -4,6 +4,7 @@
   config,
   stdenv,
   mkShell,
+  runCommand,
   cmake,
   ninja,
   pkg-config,
@@ -87,6 +88,11 @@ let
     ]
   );
 
+  darwinSymlinks = runCommand "darwin-build-symlinks" {} ''
+    mkdir -p $out/bin
+    ln -s /usr/bin/xcrun $out/bin
+  '';
+
   # apple_sdk is supposed to choose sane defaults, no need to handle isAarch64
   # separately
   darwinBuildInputs =
@@ -157,6 +163,8 @@ effectiveStdenv.mkDerivation (
       substituteInPlace ./*.py --replace "/usr/bin/env python" "${llama-python}/bin/python"
     '';
 
+    __noChroot = effectiveStdenv.isDarwin && useMetalKit;
+
     nativeBuildInputs =
       [
         cmake
@@ -173,6 +181,8 @@ effectiveStdenv.mkDerivation (
       ]
       ++ optionals (effectiveStdenv.hostPlatform.isGnu && enableStatic) [
         glibc.static
+      ] ++ optionals (effectiveStdenv.isDarwin && useMetalKit) [
+        darwinSymlinks
       ];
 
     buildInputs =
